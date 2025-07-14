@@ -66,7 +66,8 @@ def nms_onnx(boxes_xywh, scores, iou_threshold=0.5):
 def get_session():
 
     if not os.path.exists("k-ai-model-bucket-yolov8n.onnx"):
-        client = storage.Client.from_service_account_json("key.json")
+        # client = storage.Client.from_service_account_json("key.json")
+        client = storage.Client()
         bucket = client.bucket("k-ai-model-bucket")
         blob = bucket.blob("yolo/yolov8n.onnx")
         print("Downloading ONNX model...")

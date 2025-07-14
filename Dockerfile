@@ -7,8 +7,8 @@ COPY requirements.txt .
 COPY main.py .
 COPY labels.txt .
 
-# 서비스 계정 키 복사 (로컬에서 함께 전달해야 함)
-COPY key.json /app/key.json
+# 서비스 계정 키는 런타임에 볼륨으로 전달해야 함
+# 환경 변수는 런타임에 설정해야 함
 
 # 의존성 설치 requirements.txt 파일을 사용함
 RUN pip install -r requirements.txt
