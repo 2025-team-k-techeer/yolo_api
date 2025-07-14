@@ -4,6 +4,7 @@ import numpy as np
 from PIL import Image
 from google.cloud import storage
 import onnxruntime
+from main import process_outputs
 
 
 def xywh_to_xyxy(boxes):
@@ -86,40 +87,40 @@ def nms_onnx(boxes_xywh, scores, iou_threshold=0.5):
 session = get_session()
 
 
-def process_outputs(outputs, confidence_threshold=0.1, iou_threshold=0.5):
-    result = outputs[0]  # (1, 84, 8400)
-    result = result.transpose(0, 2, 1).squeeze(0)  # → (8400, 84)
+# def process_outputs(outputs, confidence_threshold=0.1, iou_threshold=0.5):
+#     result = outputs[0]  # (1, 84, 8400)
+#     result = result.transpose(0, 2, 1).squeeze(0)  # → (8400, 84)
 
-    boxes = result[:, :4]  # cx, cy, w, h
-    class_scores = result[:, 4:]  # no objectness, just class probs
+#     boxes = result[:, :4]  # cx, cy, w, h
+#     class_scores = result[:, 4:]  # no objectness, just class probs
 
-    confidences = class_scores.max(axis=1)
-    class_ids = class_scores.argmax(axis=1)
+#     confidences = class_scores.max(axis=1)
+#     class_ids = class_scores.argmax(axis=1)
 
-    mask = confidences > confidence_threshold
-    boxes = boxes[mask]
-    confidences = confidences[mask]
-    class_ids = class_ids[mask]
+#     mask = confidences > confidence_threshold
+#     boxes = boxes[mask]
+#     confidences = confidences[mask]
+#     class_ids = class_ids[mask]
 
-    keep = nms_onnx(boxes, confidences, iou_threshold)
+#     keep = nms_onnx(boxes, confidences, iou_threshold)
 
-    boxes = boxes[keep]
-    confidences = confidences[keep]
-    class_ids = class_ids[keep]
+#     boxes = boxes[keep]
+#     confidences = confidences[keep]
+#     class_ids = class_ids[keep]
 
-    results = []
-    for i in range(len(boxes)):
-        cx, cy, w, h = boxes[i]
-        results.append(
-            {
-                "center_x": float(cx),
-                "center_y": float(cy),
-                "box_width": float(w),
-                "box_height": float(h),
-            }
-        )
+#     results = []
+#     for i in range(len(boxes)):
+#         cx, cy, w, h = boxes[i]
+#         results.append(
+#             {
+#                 "center_x": float(cx),
+#                 "center_y": float(cy),
+#                 "box_width": float(w),
+#                 "box_height": float(h),
+#             }
+#         )
 
-    return {"length": len(results), "results": results}
+#     return {"length": len(results), "results": results}
 
 
 def show_boxes(file_url: str, confidence_threshold=0.25, iou_threshold=0.5):
@@ -139,6 +140,7 @@ def show_boxes(file_url: str, confidence_threshold=0.25, iou_threshold=0.5):
     result = process_outputs(outputs, confidence_threshold, iou_threshold)
 
     for res in result["results"]:
+        print(res)
         rect = patches.Rectangle(
             (
                 res["center_x"] - res["box_width"] / 2,

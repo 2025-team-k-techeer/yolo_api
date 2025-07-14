@@ -10,6 +10,8 @@ from google.cloud import storage
 
 
 app = FastAPI()
+with open("labels.txt", "r") as file:
+    labels = [line.strip() for line in file]
 
 
 def xywh_to_xyxy(boxes):
@@ -79,16 +81,15 @@ session = get_session()
 
 
 def process_outputs(outputs, confidence_threshold=0.5, iou_threshold=0.5):
-    result = outputs[0]  # (1, 84, 8400)
+    result = outputs[0]  # shape: (1, 84, 8400)
     result = result.transpose(0, 2, 1).squeeze(0)  # → (8400, 84)
 
     boxes = result[:, :4]  # cx, cy, w, h
-    class_scores = result[:, 4:]  # no objectness, just class probs
-
+    class_scores = result[:, 4:]
     confidences = class_scores.max(axis=1)
     class_ids = class_scores.argmax(axis=1)
-
     mask = confidences > confidence_threshold
+
     boxes = boxes[mask]
     confidences = confidences[mask]
     class_ids = class_ids[mask]
@@ -108,6 +109,8 @@ def process_outputs(outputs, confidence_threshold=0.5, iou_threshold=0.5):
                 "center_y": float(cy),
                 "box_width": float(w),
                 "box_height": float(h),
+                "confidence": float(confidences[i]),
+                "label": labels[class_ids[i]],
             }
         )
 
