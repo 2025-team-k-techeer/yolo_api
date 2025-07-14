@@ -19,8 +19,7 @@ RUN pip install -r requirements.txt
 RUN apt-get update && \
 	apt-get install -y curl gnupg ca-certificates && \
 	echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" > /etc/apt/sources.list.d/google-cloud-sdk.list && \
-	curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add - && \
-	apt-get update && apt-get install -y google-cloud-sdk
+	curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
 
 # # 서비스 계정 인증 및 모델 다운로드
 # RUN gcloud auth activate-service-account --key-file=/app/key.json && \
