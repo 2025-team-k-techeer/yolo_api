@@ -1,15 +1,9 @@
-# main.py
 import os
-import onnxruntime, onnx
-from fastapi import FastAPI, UploadFile
-from PIL import Image
+from matplotlib import patches, pyplot as plt
 import numpy as np
-import io
-import json
+from PIL import Image
 from google.cloud import storage
-
-
-app = FastAPI()
+import onnxruntime
 
 
 def xywh_to_xyxy(boxes):
@@ -41,6 +35,20 @@ def compute_iou(box, boxes):
     return inter / union
 
 
+def get_session():
+
+    if not os.path.exists("k-ai-model-bucket-yolov8n.onnx"):
+        client = storage.Client.from_service_account_json("key.json")
+        bucket = client.bucket("k-ai-model-bucket")
+        blob = bucket.blob("yolo/yolov8n.onnx")
+        print("Downloading ONNX model...")
+        blob.download_to_filename("k-ai-model-bucket-yolov8n.onnx")
+
+    return onnxruntime.InferenceSession(
+        "k-ai-model-bucket-yolov8n.onnx", providers=["CPUExecutionProvider"]
+    )
+
+
 def nms_onnx(boxes_xywh, scores, iou_threshold=0.5):
     boxes = xywh_to_xyxy(boxes_xywh)
     indices = scores.argsort()[::-1]
@@ -61,24 +69,24 @@ def nms_onnx(boxes_xywh, scores, iou_threshold=0.5):
 # session = onnxruntime.InferenceSession(
 #     "gs://k-ai-model-bucket/yolo/yolov8n.onnx", providers=["CPUExecutionProvider"]
 # )
-def get_session():
+# def get_session():
 
-    if not os.path.exists("k-ai-model-bucket-yolov8n.onnx"):
-        client = storage.Client.from_service_account_json("key.json")
-        bucket = client.bucket("k-ai-model-bucket")
-        blob = bucket.blob("yolo/yolov8n.onnx")
-        print("Downloading ONNX model...")
-        blob.download_to_filename("k-ai-model-bucket-yolov8n.onnx")
+#     if not os.path.exists("k-ai-model-bucket-yolov8n.onnx"):
+#         client = storage.Client.from_service_account_json("key.json")
+#         bucket = client.bucket("k-ai-model-bucket")
+#         blob = bucket.blob("yolo/yolov8n.onnx")
+#         print("Downloading ONNX model...")
+#         blob.download_to_filename("k-ai-model-bucket-yolov8n.onnx")
 
-    return onnxruntime.InferenceSession(
-        "k-ai-model-bucket-yolov8n.onnx", providers=["CPUExecutionProvider"]
-    )
+#     return onnxruntime.InferenceSession(
+#         "k-ai-model-bucket-yolov8n.onnx", providers=["CPUExecutionProvider"]
+#     )
 
 
 session = get_session()
 
 
-def process_outputs(outputs, confidence_threshold=0.5, iou_threshold=0.5):
+def process_outputs(outputs, confidence_threshold=0.1, iou_threshold=0.5):
     result = outputs[0]  # (1, 84, 8400)
     result = result.transpose(0, 2, 1).squeeze(0)  # → (8400, 84)
 
@@ -114,18 +122,46 @@ def process_outputs(outputs, confidence_threshold=0.5, iou_threshold=0.5):
     return {"length": len(results), "results": results}
 
 
-@app.post("/predict")
-async def predict(file: UploadFile):
+def show_boxes(file_url: str, confidence_threshold=0.25, iou_threshold=0.5):
     # 이미지 전처리
-    image = Image.open(io.BytesIO(await file.read())).convert("RGB").resize((640, 640))
+    with open(file_url, "rb") as f:
+        image = Image.open(f).convert("RGB").resize((640, 640))
+
     input_array = np.array(image).transpose(2, 0, 1).astype(np.float32) / 255.0
     input_tensor = np.expand_dims(input_array, axis=0)
-
+    fig, ax = plt.subplots(figsize=(10, 8))
+    ax.imshow(image)
     # 모델 추론
     inputs = {session.get_inputs()[0].name: input_tensor}
     outputs = session.run(None, inputs)
-
+    print("output type:", type(outputs[0]))
     # 후처리 (예: 바운딩 박스, 클래스 라벨)
-    result = process_outputs(outputs)
+    result = process_outputs(outputs, confidence_threshold, iou_threshold)
 
-    return {"predictions": result}
+    for res in result["results"]:
+        rect = patches.Rectangle(
+            (
+                res["center_x"] - res["box_width"] / 2,
+                res["center_y"] - res["box_height"] / 2,
+            ),
+            res["box_width"],
+            res["box_height"],
+            linewidth=1,
+            edgecolor="r",
+            facecolor="none",
+        )
+        ax.add_patch(rect)
+    plt.axis("off")
+    plt.show()
+
+
+import onnx
+
+model = onnx.load("k-ai-model-bucket-yolov8n.onnx")
+print("Inputs:", [input.name for input in model.graph.input])
+print("Outputs:", [output.name for output in model.graph.output])
+
+show_boxes(
+    "coverim20240404225240_5.jpeg", confidence_threshold=0.05, iou_threshold=0.65
+)
+# return {"predictions": result}
