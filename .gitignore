@@ -1,0 +1,9 @@
+.venv
+*.json
+.env
+.pyc
+__pycache__/
+
+yolo_test.py
+
+/models/

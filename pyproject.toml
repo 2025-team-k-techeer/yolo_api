@@ -1,0 +1,12 @@
+[project]
+name = "yolo-api"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi[standard]>=0.116.1",
+    "numpy>=2.2.6",
+    "onnxruntime>=1.22.1",
+    "pillow>=11.3.0",
+]
