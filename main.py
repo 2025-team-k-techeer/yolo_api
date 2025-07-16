@@ -5,13 +5,13 @@ import numpy as np
 import io
 from yolo.yolo_fun import get_yolo_session, process_outputs
 
-# from clip.clip_fun import get_clip_embedding_from_uploadfile, get_clip_session
+from clip.clip_fun import get_clip_embedding_from_uploadfile, get_clip_session
 
 app = FastAPI()
 
 
 yollo_session = get_yolo_session()
-# clip_session = get_clip_session()
+clip_session = get_clip_session()
 
 
 @app.get("/health")
@@ -36,7 +36,17 @@ async def predict(file: UploadFile):
     return {"predictions": result}
 
 
-# @app.post("/clip/embedding")
-# async def clip_embed(image: UploadFile):
-#     embedding = get_clip_embedding_from_uploadfile(image, clip_session)
-#     return {"embedding": embedding.tolist(), "length": len(embedding)}
+@app.post("/clip/embedding")
+async def clip_embed(image: UploadFile):
+    embedding = get_clip_embedding_from_uploadfile(image, clip_session)
+    vector = embedding[0]  # 첫 번째 벡터 (batch에서 꺼내기)
+    return {
+        "embedding": vector.tolist(),  # 리스트 형태로 반환
+        "length": len(vector),  # 벡터 길이 (예: 512)
+    }
+
+
+@app.on_event("startup")
+def print_clip_model_info():
+    print("CLIP 입력 이름:", clip_session.get_inputs()[0].name)
+    print("CLIP 출력 이름:", clip_session.get_outputs()[0].name)

@@ -70,7 +70,6 @@ def nms_onnx(boxes_xywh, scores, iou_threshold=0.5):
 
 
 def get_yolo_session():
-    # ONNX 모델이 이미지에 포함되어 있다고 가정
     return onnxruntime.InferenceSession(
         "models/yolov8n.onnx", providers=["CPUExecutionProvider"]
     )
