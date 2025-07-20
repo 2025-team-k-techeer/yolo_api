@@ -1,6 +1,7 @@
 import numpy as np
 import onnxruntime
-
+import os
+from google.cloud import storage
 
 with open("labels.txt", "r") as file:
     labels = [line.strip() for line in file]
@@ -70,8 +71,16 @@ def nms_onnx(boxes_xywh, scores, iou_threshold=0.5):
 
 
 def get_yolo_session():
+    # ONNX 모델이 이미지에 포함되어 있다고 가정
+    if not os.path.exists("yolo/yolov8n.onnx"):
+        client = storage.Client()
+        bucket = client.bucket("k-ai-model-bucket")
+        blob = bucket.blob("yolo/yolov8n.onnx")
+        print("Downloading YOLO model...")
+        blob.download_to_filename("yolo/yolov8n.onnx")
+
     return onnxruntime.InferenceSession(
-        "models/yolov8n.onnx", providers=["CPUExecutionProvider"]
+        "yolo/yolov8n.onnx", providers=["CPUExecutionProvider"]
     )
 
 

@@ -124,6 +124,25 @@ session = get_session()
 
 
 def show_boxes(file_url: str, confidence_threshold=0.25, iou_threshold=0.5):
+    """
+    주어진 이미지 파일에서 객체 감지 결과를 시각화하는 함수입니다.
+
+    Args:
+        file_url (str): 처리할 이미지 파일의 경로입니다.
+        confidence_threshold (float, optional): 감지된 객체의 신뢰도 임계값입니다.
+            기본값은 0.25입니다. 이 값보다 낮은 신뢰도를 가진 객체는 무시됩니다.
+        iou_threshold (float, optional): Non-Maximum Suppression(NMS)에 사용되는
+            IoU(Intersection over Union) 임계값입니다. 기본값은 0.5입니다.
+
+    작업 과정:
+        1. 이미지 파일을 읽고 전처리합니다.
+        2. 모델을 사용하여 객체 감지를 수행합니다.
+        3. 감지된 객체의 바운딩 박스와 클래스 라벨을 후처리합니다.
+        4. 결과를 시각화하여 이미지에 바운딩 박스를 그립니다.
+
+    Returns:
+        None: 결과는 화면에 시각적으로 표시됩니다.
+    """
     # 이미지 전처리
     with open(file_url, "rb") as f:
         image = Image.open(f).convert("RGB").resize((640, 640))
