@@ -11,3 +11,7 @@ pyproject.toml
 uv.lock
 yolo_test.py
 *.log
+
+test_process.py
+
+image/
