@@ -1,0 +1,68 @@
+name: Deploy YOLO+CLIP API to Cloud Run via Artifact Registry
+
+on:
+  push:
+    branches: [main, master]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      GAR_LOCATION: asia-northeast3-docker.pkg.dev
+      REPOSITORY: yolo-clip-api
+      IMAGE: yolo-clip-api
+      REGION: asia-northeast3
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      # Google Cloud 인증 (서비스 계정 키 필요)
+      - name: Log in to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker $GAR_LOCATION
+
+      - name: Build Docker image
+        run: |
+          docker build -t $GAR_LOCATION/$PROJECT_ID/$REPOSITORY/$IMAGE:${{ github.sha }} .
+
+      - name: Push Docker image to Artifact Registry
+        run: |
+          docker push $GAR_LOCATION/$PROJECT_ID/$REPOSITORY/$IMAGE:${{ github.sha }}
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy $IMAGE \
+            --image $GAR_LOCATION/$PROJECT_ID/$REPOSITORY/$IMAGE:${{ github.sha }} \
+            --region $REGION \
+            --platform managed \
+            --allow-unauthenticated \
+            --memory 2Gi \
+            --timeout 900
+
+# 이 워크플로우는 다음을 자동화합니다:
+# 1. main/master 브랜치에 push 시 코드 체크아웃
+# 2. Docker 이미지 빌드 및 Google Artifact Registry에 푸시
+# 3. Cloud Run에 최신 이미지를 자동 배포
+#
+# secrets에 GCP_PROJECT_ID, GCP_SA_KEY(서비스 계정 키 JSON)가 반드시 등록되어 있어야 합니다.
