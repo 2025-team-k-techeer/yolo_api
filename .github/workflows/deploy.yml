@@ -10,7 +10,7 @@ jobs:
     env:
       PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
       GAR_LOCATION: asia-northeast3-docker.pkg.dev
-      REPOSITORY: yolo-clip-api
+      REPOSITORY: ai-api
       IMAGE: yolo-clip-api
       REGION: asia-northeast3
 
