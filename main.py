@@ -7,6 +7,7 @@ from yolo.yolo_fun import yolo_detect_and_convert_bbox
 from clip.clip_fun import get_clip_embedding_from_pil, get_clip_session
 from sklearn.preprocessing import normalize
 import numpy as np
+import requests
 
 app = FastAPI()
 clip_session = get_clip_session()
@@ -63,19 +64,15 @@ async def process_image(file: UploadFile = File(None), url: str = Form(None)):
 
 
 async def load_image(file, url):
-    """
-    업로드 파일 또는 URL로부터 이미지를 로드하여 PIL Image로 반환합니다.
-    실패 시 None 반환.
-    """
     if file:
         file_bytes = await file.read()
         return Image.open(io.BytesIO(file_bytes)).convert("RGB")
     elif url:
-        import requests
-
-        response = requests.get(url)
-        if response.status_code != 200:
+        try:
+            response = requests.get(url)
+            if response.status_code != 200:
+                return None
+            return Image.open(io.BytesIO(response.content)).convert("RGB")
+        except Exception:
             return None
-        return Image.open(io.BytesIO(response.content)).convert("RGB")
-    else:
-        return None
+    return None

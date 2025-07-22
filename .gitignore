@@ -7,6 +7,7 @@ __pycache__/
 yolo_test.py
 clip_test.py
 test_process.py
+clip_embedding_data/*
 
 /models/
 *.onnx
