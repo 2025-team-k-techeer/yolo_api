@@ -11,6 +11,8 @@ pyproject.toml
 uv.lock
 yolo_test.py
 *.log
+clip_embedding_data/*
+test_*.py
 
 test_process.py
 

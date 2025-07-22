@@ -1,4 +1,3 @@
-import io
 from fastapi import UploadFile
 import onnxruntime
 import numpy as np
@@ -33,13 +32,26 @@ async def get_clip_embedding_from_uploadfile(
 
 def get_clip_embedding_from_pil(image: Image.Image, session) -> np.ndarray:
     """
-    crop된 PIL 이미지를 CLIP 모델에 입력하여 임베딩 벡터(768차원)를 반환합니다.
+    PIL 이미지를 전처리하고 CLIP ONNX 세션을 통해 (768,) 임베딩 벡터를 추출합니다.
     """
     image_arr = preprocess_image(image)
-    image_arr = np.expand_dims(image_arr, axis=0)
-    inputs = {"pixel_values": image_arr}
+    image_arr = np.expand_dims(image_arr, axis=0)  # (1, 3, 224, 224)
+    inputs = {session.get_inputs()[0].name: image_arr}
+
     outputs = session.run(None, inputs)
-    return outputs[1]
+
+    # ✅ 첫 번째 출력이 image embedding이라고 가정 (ONNX 구조 확인 권장)
+    embedding = outputs[0]
+
+    # ✅ (1, 768) 또는 (1, 50, 768) → (768,)
+    if len(embedding.shape) == 3:
+        embedding = embedding.mean(axis=1)  # (1, 768)
+    embedding = embedding.squeeze()
+
+    # ✅ L2 정규화
+    embedding = embedding / np.linalg.norm(embedding)
+
+    return embedding
 
 
 def preprocess_image(image: Image.Image) -> np.ndarray:
