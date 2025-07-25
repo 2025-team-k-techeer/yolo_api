@@ -13,7 +13,7 @@ def get_yolo_session():
     """
     YOLO ONNX 모델 세션을 반환합니다. 없으면 GCS에서 다운로드합니다.
     """
-    if not os.path.exists("yolo/yolov8n.onnx"):
+    if not os.path.exists("yolo/yolov8x-worldv2.onnx"):
         client = storage.Client()
         bucket = client.bucket("k-ai-model-bucket")
         blob = bucket.blob("yolo/yolov8x-worldv2.onnx")
@@ -26,7 +26,7 @@ def read_class_embeddings(embed_path):
     if not os.path.exists(embed_path):
         client = storage.Client()
         bucket = client.bucket("k-ai-model-bucket")
-        blob = bucket.blob("yolo/yolov8n.onnx")
+        blob = bucket.blob(embed_path)
         print("Downloading YOLO model...")
         blob.download_to_filename(embed_path)
     data = np.load(embed_path)
