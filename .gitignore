@@ -11,5 +11,5 @@ clip_embedding_data/*
 
 /models/
 *.onnx
-
+*.npz
 image/
