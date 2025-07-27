@@ -5,26 +5,47 @@ from google.cloud import storage
 from PIL import Image
 
 # 라벨 파일 로드
-with open("labels.txt", "r") as file:
-    labels = [line.strip() for line in file]
+# with open("labels.txt", "r") as file:
+#     labels = [line.strip() for line in file]
+
+class NoResultsFoundException(Exception):
+    """Raised when an expected search yields no results."""
+    pass
 
 
 def get_yolo_session():
     """
     YOLO ONNX 모델 세션을 반환합니다. 없으면 GCS에서 다운로드합니다.
     """
-    if not os.path.exists("yolo/yolov8n.onnx"):
+    if not os.path.exists("yolo/yolov8x-worldv2.onnx"):
         client = storage.Client()
         bucket = client.bucket("k-ai-model-bucket")
-        blob = bucket.blob("yolo/yolov8n.onnx")
+        blob = bucket.blob("yolo/yolov8x-worldv2.onnx")
         print("Downloading YOLO model...")
-        blob.download_to_filename("yolo/yolov8n.onnx")
+        blob.download_to_filename("yolo/yolov8x-worldv2.onnx")
+        print("Download Complete ✅")
     return onnxruntime.InferenceSession(
-        "yolo/yolov8n.onnx", providers=["CPUExecutionProvider"]
+        "yolo/yolov8x-worldv2.onnx", providers=["CPUExecutionProvider"]
     )
+def read_class_embeddings(embed_path):
+    if not os.path.exists(embed_path):
+        client = storage.Client()
+        bucket = client.bucket("k-ai-model-bucket")
+        blob = bucket.blob(embed_path)
+        print("Downloading class embeddings...")
+        blob.download_to_filename(embed_path)
+        print("Download Complete ✅")
+    data = np.load(embed_path)
+    return data["class_embeddings"], data["class_list"].tolist()
+def inference(inputs):
+        # start = time.perf_counter()
+        
+        outputs = session.run(output_names = [output.name for output in session.get_outputs()], input_feed=
+                                   inputs)
 
-
-def process_outputs(outputs, confidence_threshold=0.5, iou_threshold=0.5):
+        # print(f"Inference time: {(time.perf_counter() - start) * 1000:.2f} ms")
+        return outputs
+def process_outputs(outputs, confidence_threshold=0.3, iou_threshold=0.5):
     """
     YOLO 모델의 원시 출력값을 후처리하여 객체별 정보 리스트로 반환합니다.
     - confidence_threshold: 신뢰도 임계값
@@ -45,12 +66,12 @@ def process_outputs(outputs, confidence_threshold=0.5, iou_threshold=0.5):
     confidences = confidences[keep]
     class_ids = class_ids[keep]
     results = []
-    allowed_labels = {"bed", "chair", "couch"}
+    # allowed_labels = set(labels)
     for i in range(len(boxes)):
         cx, cy, w, h = boxes[i]
         label = labels[class_ids[i]]
-        if label not in allowed_labels:
-            continue
+        # if label not in allowed_labels:
+        #     continue
         results.append(
             {
                 "center_x": float(cx),
@@ -61,6 +82,9 @@ def process_outputs(outputs, confidence_threshold=0.5, iou_threshold=0.5):
                 "label": label,
             }
         )
+    # if YOLO fails to find the boxes, raise the exception. 
+    if not results:
+        raise NoResultsFoundException("Unable to detect furniture objects.")
     return results
 
 
@@ -108,20 +132,21 @@ def nms_onnx(boxes_xywh, scores, iou_threshold=0.5):
         ious = compute_iou(boxes[current], boxes[indices[1:]])
         indices = indices[1:][ious <= iou_threshold]
     return keep
-
+session = get_yolo_session()
+class_embeddings, labels = read_class_embeddings('yolo/class_embeddings.npz')
 
 def yolo_detect_and_convert_bbox(image: Image.Image):
     """
     입력 이미지를 YOLO로 추론하고, bbox를 원본 크기 기준 [x, y, width, height]로 변환하여 반환합니다.
     crop_box는 crop용 좌표 (int, 이미지 경계 보정)
     """
+
     orig_w, orig_h = image.width, image.height
     yolo_img = image.resize((640, 640))
     input_array = np.array(yolo_img).transpose(2, 0, 1).astype(np.float32) / 255.0
     input_tensor = np.expand_dims(input_array, axis=0)
-    session = get_yolo_session()
-    inputs = {session.get_inputs()[0].name: input_tensor}
-    outputs = session.run(None, inputs)
+    inputs = {session.get_inputs()[0].name: input_tensor, session.get_inputs()[1].name: class_embeddings}
+    outputs = inference(inputs)
     objects = process_outputs(outputs)
     results = []
     for obj in objects:
@@ -154,3 +179,4 @@ def yolo_detect_and_convert_bbox(image: Image.Image):
             }
         )
     return results
+
