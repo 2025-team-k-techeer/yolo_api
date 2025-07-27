@@ -54,12 +54,12 @@ async def process_image(file: UploadFile = File(None), url: str = Form(None)):
             )
         print(len(clip_emb), "차원 CLIP 임베딩 벡터 생성 완료")
         return JSONResponse(content=results)
-    except Exception:
+    except Exception as e:
         import traceback
 
         print(traceback.format_exc())
         return JSONResponse(
-            status_code=500, content={"detail": "Failed to process image"}
+            status_code=500, content={"detail": "Failed to process image", "cause": f"{str(e)}"}
         )
 
 

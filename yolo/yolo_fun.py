@@ -8,6 +8,10 @@ from PIL import Image
 # with open("labels.txt", "r") as file:
 #     labels = [line.strip() for line in file]
 
+class NoResultsFoundException(Exception):
+    """Raised when an expected search yields no results."""
+    pass
+
 
 def get_yolo_session():
     """
@@ -19,6 +23,7 @@ def get_yolo_session():
         blob = bucket.blob("yolo/yolov8x-worldv2.onnx")
         print("Downloading YOLO model...")
         blob.download_to_filename("yolo/yolov8x-worldv2.onnx")
+        print("Download Complete ✅")
     return onnxruntime.InferenceSession(
         "yolo/yolov8x-worldv2.onnx", providers=["CPUExecutionProvider"]
     )
@@ -27,8 +32,9 @@ def read_class_embeddings(embed_path):
         client = storage.Client()
         bucket = client.bucket("k-ai-model-bucket")
         blob = bucket.blob(embed_path)
-        print("Downloading YOLO model...")
+        print("Downloading class embeddings...")
         blob.download_to_filename(embed_path)
+        print("Download Complete ✅")
     data = np.load(embed_path)
     return data["class_embeddings"], data["class_list"].tolist()
 def inference(inputs):
@@ -39,7 +45,7 @@ def inference(inputs):
 
         # print(f"Inference time: {(time.perf_counter() - start) * 1000:.2f} ms")
         return outputs
-def process_outputs(outputs, confidence_threshold=0.1, iou_threshold=0.1):
+def process_outputs(outputs, confidence_threshold=0.3, iou_threshold=0.5):
     """
     YOLO 모델의 원시 출력값을 후처리하여 객체별 정보 리스트로 반환합니다.
     - confidence_threshold: 신뢰도 임계값
@@ -76,6 +82,9 @@ def process_outputs(outputs, confidence_threshold=0.1, iou_threshold=0.1):
                 "label": label,
             }
         )
+    # if YOLO fails to find the boxes, raise the exception. 
+    if not results:
+        raise NoResultsFoundException("Unable to detect furniture objects.")
     return results
 
 
